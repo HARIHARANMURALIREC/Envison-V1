@@ -33,6 +33,32 @@ const CameraCapture = () => {
     gain: 'auto',
     whiteBalance: 'auto'
   });
+  const [flipSettings, setFlipSettings] = useState({
+    flipVertical: true,    // Fix inverted camera by default
+    flipHorizontal: false  // No mirror effect by default
+  });
+
+  // Sync flip settings with backend
+  const syncFlipSettingsWithBackend = useCallback(async (newSettings) => {
+    try {
+      const response = await fetch('http://localhost:5001/api/camera/flip-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          flip_vertical: newSettings.flipVertical,
+          flip_horizontal: newSettings.flipHorizontal
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Flip settings synced with backend');
+      }
+    } catch (error) {
+      console.error('Failed to sync flip settings with backend:', error);
+    }
+  }, []);
   const [calibration, setCalibration] = useState({
     pixelSize: 0.1, // microns per pixel
     magnification: 100,
@@ -47,6 +73,24 @@ const CameraCapture = () => {
   const webcamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
+
+  // Load flip settings from backend
+  const loadFlipSettings = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/camera/flip-settings');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setFlipSettings({
+            flipVertical: data.settings.flip_vertical,
+            flipHorizontal: data.settings.flip_horizontal
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load flip settings from backend:', error);
+    }
+  }, []);
 
   // Get available cameras
   const getCameras = useCallback(async () => {
@@ -82,6 +126,11 @@ const CameraCapture = () => {
       toast.error('Failed to get camera list: ' + error.message);
     }
   }, []);
+
+  // Load settings when component mounts
+  useEffect(() => {
+    loadFlipSettings();
+  }, [loadFlipSettings]);
 
   // Request camera permissions explicitly
   const requestCameraPermission = useCallback(async () => {
@@ -427,6 +476,41 @@ const CameraCapture = () => {
                   <option value={60}>60 fps</option>
                 </select>
               </div>
+
+              {/* Image Flip Controls */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Image Orientation
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={flipSettings.flipVertical}
+                      onChange={(e) => {
+                        const newSettings = { ...flipSettings, flipVertical: e.target.checked };
+                        setFlipSettings(newSettings);
+                        syncFlipSettingsWithBackend(newSettings);
+                      }}
+                      className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-secondary-700">Flip Vertical (Fix Inverted)</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={flipSettings.flipHorizontal}
+                      onChange={(e) => {
+                        const newSettings = { ...flipSettings, flipHorizontal: e.target.checked };
+                        setFlipSettings(newSettings);
+                        syncFlipSettingsWithBackend(newSettings);
+                      }}
+                      className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-secondary-700">Flip Horizontal (Mirror)</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -593,6 +677,10 @@ const CameraCapture = () => {
                   videoConstraints={videoConstraints}
                   className="w-full h-full object-contain rounded-lg"
                   screenshotFormat="image/png"
+                  mirrored={flipSettings.flipHorizontal}
+                  style={{
+                    transform: flipSettings.flipVertical ? 'scaleY(-1)' : 'scaleY(1)'
+                  }}
                 />
               ) : (
                 <div className="text-center text-secondary-500">
@@ -613,6 +701,9 @@ const CameraCapture = () => {
                   src={capturedImage}
                   alt="Captured microscopy image"
                   className="w-full h-full object-contain rounded-lg"
+                  style={{
+                    transform: `${flipSettings.flipHorizontal ? 'scaleX(-1)' : ''} ${flipSettings.flipVertical ? 'scaleY(-1)' : ''}`.trim()
+                  }}
                 />
               </div>
               <div className="mt-4 flex items-center justify-between">
@@ -665,6 +756,9 @@ const CameraCapture = () => {
                       src={capture.imageData}
                       alt="Captured image"
                       className="w-full h-48 object-cover rounded-lg mb-3"
+                      style={{
+                        transform: `${flipSettings.flipHorizontal ? 'scaleX(-1)' : ''} ${flipSettings.flipVertical ? 'scaleY(-1)' : ''}`.trim()
+                      }}
                     />
                     <button
                       onClick={() => deleteCapture(capture.id)}
