@@ -13,6 +13,8 @@ class CameraController:
         self.camera_stream = None
         self.camera_settings = {}
         self.available_cameras = []
+        self.flip_vertical = True  # Default to flipping vertically to fix inverted camera
+        self.flip_horizontal = False  # Default to no horizontal flip
         self._discover_cameras()
     
     def _discover_cameras(self):
@@ -136,6 +138,12 @@ class CameraController:
                 logger.error("Failed to capture image from camera")
                 return None
             
+            # Fix inverted camera image by flipping based on configuration
+            if self.flip_vertical:
+                frame = cv2.flip(frame, 0)  # 0 = flip vertically
+            if self.flip_horizontal:
+                frame = cv2.flip(frame, 1)  # 1 = flip horizontally
+            
             logger.info("Image captured successfully")
             return frame
             
@@ -157,6 +165,12 @@ class CameraController:
             ret, frame = self.camera_stream.read()
             if not ret:
                 return None
+            
+            # Fix inverted camera image by flipping based on configuration
+            if self.flip_vertical:
+                frame = cv2.flip(frame, 0)  # 0 = flip vertically
+            if self.flip_horizontal:
+                frame = cv2.flip(frame, 1)  # 1 = flip horizontally
             
             return frame
             
@@ -235,6 +249,25 @@ class CameraController:
         """Check if camera is currently active"""
         return (self.camera_stream is not None and 
                 self.camera_stream.isOpened())
+    
+    def set_flip_settings(self, vertical: bool = True, horizontal: bool = False):
+        """
+        Set camera image flip settings
+        
+        Args:
+            vertical: Whether to flip image vertically (fixes inverted camera)
+            horizontal: Whether to flip image horizontally (mirror effect)
+        """
+        self.flip_vertical = vertical
+        self.flip_horizontal = horizontal
+        logger.info(f"Flip settings updated: vertical={vertical}, horizontal={horizontal}")
+    
+    def get_flip_settings(self) -> Dict[str, bool]:
+        """Get current flip settings"""
+        return {
+            'flip_vertical': self.flip_vertical,
+            'flip_horizontal': self.flip_horizontal
+        }
     
     def get_supported_resolutions(self, camera_id: str) -> List[str]:
         """

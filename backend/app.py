@@ -135,6 +135,47 @@ def capture_image():
             'error': str(e)
         }), 500
 
+@app.route('/api/camera/flip-settings', methods=['GET'])
+def get_flip_settings():
+    """Get current camera flip settings"""
+    try:
+        settings = camera_controller.get_flip_settings()
+        return jsonify({
+            'success': True,
+            'settings': settings
+        })
+    except Exception as e:
+        logger.error(f"Error getting flip settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/camera/flip-settings', methods=['POST'])
+def set_flip_settings():
+    """Set camera flip settings"""
+    try:
+        data = request.get_json()
+        vertical = data.get('flip_vertical', True)
+        horizontal = data.get('flip_horizontal', False)
+        
+        camera_controller.set_flip_settings(vertical, horizontal)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Flip settings updated successfully',
+            'settings': {
+                'flip_vertical': vertical,
+                'flip_horizontal': horizontal
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error setting flip settings: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/upload', methods=['POST'])
 def upload_image():
     """Upload image file"""
