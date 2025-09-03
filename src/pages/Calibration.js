@@ -30,6 +30,7 @@ const Calibration = () => {
   const [unit, setUnit] = useState('µm');
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
+  const [mousePosition, setMousePosition] = useState(null);
   const [pixelDistance, setPixelDistance] = useState(0);
   const [realLength, setRealLength] = useState('');
   const [calibrationRatio, setCalibrationRatio] = useState(0);
@@ -84,6 +85,7 @@ const Calibration = () => {
     setUnit('µm');
     setStartPoint(null);
     setEndPoint(null);
+    setMousePosition(null);
     setPixelDistance(0);
     setRealLength('');
     setCalibrationRatio(0);
@@ -385,35 +387,70 @@ const Calibration = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <div className="border border-secondary-300 rounded-lg p-4 bg-secondary-50">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-secondary-700">Image Viewer</h4>
-                  <div className="flex gap-2">
-                    <button className="tool-button" title="Zoom">
-                      <ZoomIn className="h-4 w-4" />
-                    </button>
-                    <button className="tool-button" title="Point Selection">
-                      <MousePointer className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                                 <div className="flex items-center justify-between mb-4">
+                   <h4 className="font-medium text-secondary-700">Image Viewer</h4>
+                   <div className="flex gap-2">
+                     <button className="tool-button" title="Zoom">
+                       <ZoomIn className="h-4 w-4" />
+                     </button>
+                     <button className="tool-button" title="Point Selection">
+                       <MousePointer className="h-4 w-4" />
+                     </button>
+                   </div>
+                 </div>
+                 {startPoint && !endPoint && (
+                   <div className="mb-3 p-2 bg-primary-50 border border-primary-200 rounded-lg">
+                     <p className="text-sm text-primary-700">
+                       <strong>Tip:</strong> Click to set end point. Line will be constrained to straight horizontal or vertical.
+                     </p>
+                   </div>
+                 )}
                 {selectedImage ? (
                   <div className="relative">
-                    <img
-                      src={selectedImage.url}
-                      alt="Calibration"
-                      className="w-full h-96 object-contain cursor-crosshair"
-                      onClick={(e) => {
-                        const rect = e.target.getBoundingClientRect();
-                        const x = e.clientX - rect.left;
-                        const y = e.clientY - rect.top;
-                        
-                        if (!startPoint) {
-                          setStartPoint({ x, y });
-                        } else if (!endPoint) {
-                          setEndPoint({ x, y });
-                        }
-                      }}
-                    />
+                                         <img
+                       src={selectedImage.url}
+                       alt="Calibration"
+                       className="w-full h-96 object-contain cursor-crosshair"
+                       onClick={(e) => {
+                         const rect = e.target.getBoundingClientRect();
+                         const x = e.clientX - rect.left;
+                         const y = e.clientY - rect.top;
+                         
+                         if (!startPoint) {
+                           setStartPoint({ x, y });
+                         } else if (!endPoint) {
+                           // Constrain to straight line (180 degrees) - either horizontal or vertical
+                           const dx = Math.abs(x - startPoint.x);
+                           const dy = Math.abs(y - startPoint.y);
+                           
+                           // If horizontal movement is greater, make it a horizontal line
+                           if (dx > dy) {
+                             setEndPoint({ x, y: startPoint.y });
+                           } else {
+                             // Otherwise make it a vertical line
+                             setEndPoint({ x: startPoint.x, y });
+                           }
+                         }
+                       }}
+                       onMouseMove={(e) => {
+                         if (startPoint && !endPoint) {
+                           const rect = e.target.getBoundingClientRect();
+                           const x = e.clientX - rect.left;
+                           const y = e.clientY - rect.top;
+                           
+                           // Constrain preview to straight line
+                           const dx = Math.abs(x - startPoint.x);
+                           const dy = Math.abs(y - startPoint.y);
+                           
+                           if (dx > dy) {
+                             setMousePosition({ x, y: startPoint.y });
+                           } else {
+                             setMousePosition({ x: startPoint.x, y });
+                           }
+                         }
+                       }}
+                       onMouseLeave={() => setMousePosition(null)}
+                     />
                     {startPoint && (
                       <div
                         className="absolute w-4 h-4 bg-primary-500 rounded-full border-2 border-white"
@@ -432,19 +469,34 @@ const Calibration = () => {
                         }}
                       />
                     )}
-                    {startPoint && endPoint && (
-                      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <line
-                          x1={startPoint.x}
-                          y1={startPoint.y}
-                          x2={endPoint.x}
-                          y2={endPoint.y}
-                          stroke="#6a1b9a"
-                          strokeWidth="2"
-                          strokeDasharray="5,5"
-                        />
-                      </svg>
-                    )}
+                                         {startPoint && endPoint && (
+                       <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                         <line
+                           x1={startPoint.x}
+                           y1={startPoint.y}
+                           x2={endPoint.x}
+                           y2={endPoint.y}
+                           stroke="#6a1b9a"
+                           strokeWidth="2"
+                           strokeDasharray="5,5"
+                         />
+                       </svg>
+                     )}
+                     {/* Preview line while moving mouse */}
+                     {startPoint && !endPoint && mousePosition && (
+                       <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                         <line
+                           x1={startPoint.x}
+                           y1={startPoint.y}
+                           x2={mousePosition.x}
+                           y2={mousePosition.y}
+                           stroke="#6a1b9a"
+                           strokeWidth="1"
+                           strokeDasharray="3,3"
+                           opacity="0.6"
+                         />
+                       </svg>
+                     )}
                   </div>
                 ) : (
                   <div className="h-96 flex items-center justify-center text-secondary-500">
@@ -453,32 +505,45 @@ const Calibration = () => {
                 )}
               </div>
             </div>
-            <div className="space-y-4">
-              <div className="p-4 bg-secondary-50 rounded-lg">
-                <h4 className="font-medium text-secondary-700 mb-3">Point Selection</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-primary-500 rounded-full"></div>
-                    <span className="text-sm text-secondary-600">
-                      {startPoint ? `Start: (${Math.round(startPoint.x)}, ${Math.round(startPoint.y)})` : 'Click to set start point'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-error-500 rounded-full"></div>
-                    <span className="text-sm text-secondary-600">
-                      {endPoint ? `End: (${Math.round(endPoint.x)}, ${Math.round(endPoint.y)})` : 'Click to set end point'}
-                    </span>
-                  </div>
-                </div>
-                {pixelDistance > 0 && (
-                  <div className="mt-4 p-3 bg-primary-50 rounded-lg">
-                    <p className="text-sm text-primary-700">
-                      <strong>Pixel Distance:</strong> {pixelDistance} pixels
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+                             <div className="space-y-4">
+                   <div className="p-4 bg-secondary-50 rounded-lg">
+                     <h4 className="font-medium text-secondary-700 mb-3">Point Selection</h4>
+                     <div className="space-y-3">
+                       <div className="flex items-center gap-2">
+                         <div className="w-3 h-3 bg-primary-500 rounded-full"></div>
+                         <span className="text-sm text-secondary-600">
+                           {startPoint ? `Start: (${Math.round(startPoint.x)}, ${Math.round(startPoint.y)})` : 'Click to set start point'}
+                         </span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <div className="w-3 h-3 bg-error-500 rounded-full"></div>
+                         <span className="text-sm text-secondary-600">
+                           {endPoint ? `End: (${Math.round(endPoint.x)}, ${Math.round(endPoint.y)})` : 'Click to set end point'}
+                         </span>
+                       </div>
+                     </div>
+                     {pixelDistance > 0 && (
+                       <div className="mt-4 p-3 bg-primary-50 rounded-lg">
+                         <p className="text-sm text-primary-700">
+                           <strong>Pixel Distance:</strong> {pixelDistance} pixels
+                         </p>
+                       </div>
+                     )}
+                     {(startPoint || endPoint) && (
+                       <button
+                         onClick={() => {
+                           setStartPoint(null);
+                           setEndPoint(null);
+                           setMousePosition(null);
+                           setPixelDistance(0);
+                         }}
+                         className="mt-3 px-3 py-1 text-sm bg-secondary-200 hover:bg-secondary-300 text-secondary-700 rounded transition-colors"
+                       >
+                         Reset Points
+                       </button>
+                     )}
+                   </div>
+                 </div>
           </div>
           <div className="flex justify-between mt-6">
             <button

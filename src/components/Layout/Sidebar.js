@@ -62,6 +62,7 @@ const Sidebar = ({ isOpen, onClose, currentPath, onNavigate }) => {
       icon: Settings,
       description: 'System configuration'
     },
+
     {
       name: 'Help',
       path: '/help',
