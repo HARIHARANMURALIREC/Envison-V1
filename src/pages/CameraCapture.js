@@ -14,8 +14,7 @@ import {
   Square,
   Clock,
   Image as ImageIcon,
-  Trash2,
-  Tag
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import captureManager from '../utils/captureManager';
@@ -59,16 +58,9 @@ const CameraCapture = () => {
       console.error('Failed to sync flip settings with backend:', error);
     }
   }, []);
-  const [calibration, setCalibration] = useState({
-    pixelSize: 0.1, // microns per pixel
-    magnification: 100,
-    calibrated: false
-  });
   const [activeTab, setActiveTab] = useState('capture');
   const [captures, setCaptures] = useState([]);
-  const [captureNotes, setCaptureNotes] = useState('');
-  const [captureTags, setCaptureTags] = useState('');
-  const [selectedAnalysisType, setSelectedAnalysisType] = useState('general');
+  const [calibration, setCalibration] = useState(null);
 
   const webcamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -89,6 +81,33 @@ const CameraCapture = () => {
       }
     } catch (error) {
       console.error('Failed to load flip settings from backend:', error);
+    }
+  }, []);
+
+  // Load calibration from backend
+  const loadCalibration = useCallback(async () => {
+    try {
+      console.log('Attempting to load calibration...');
+      const response = await fetch('http://localhost:5001/api/calibration/active');
+      console.log('Calibration response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Calibration data received:', data);
+        if (data.success && data.calibration) {
+          setCalibration(data.calibration);
+          console.log('Calibration set successfully:', data.calibration);
+        } else {
+          console.log('No calibration data found');
+          setCalibration(null);
+        }
+      } else {
+        console.log('Calibration endpoint returned error status:', response.status);
+        setCalibration(null);
+      }
+    } catch (error) {
+      console.error('Failed to load calibration from backend:', error);
+      setCalibration(null);
     }
   }, []);
 
@@ -130,7 +149,8 @@ const CameraCapture = () => {
   // Load settings when component mounts
   useEffect(() => {
     loadFlipSettings();
-  }, [loadFlipSettings]);
+    loadCalibration();
+  }, [loadFlipSettings, loadCalibration]);
 
   // Request camera permissions explicitly
   const requestCameraPermission = useCallback(async () => {
@@ -198,23 +218,15 @@ const CameraCapture = () => {
       // Save capture with metadata
       const capture = captureManager.addCapture(imageSrc, {
         resolution: cameraSettings.resolution,
-        magnification: calibration.magnification,
-        camera: selectedCamera,
-        notes: captureNotes,
-        tags: captureTags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        analysisType: selectedAnalysisType
+        camera: selectedCamera
       });
       
       // Update captures list
       setCaptures(captureManager.getCaptures());
       
-      // Clear form
-      setCaptureNotes('');
-      setCaptureTags('');
-      
       toast.success('Image captured and saved successfully');
     }
-  }, [webcamRef, cameraSettings, calibration, selectedCamera, captureNotes, captureTags, selectedAnalysisType]);
+  }, [webcamRef, cameraSettings, selectedCamera]);
 
   // Start recording
   const startRecording = useCallback(() => {
@@ -298,17 +310,7 @@ const CameraCapture = () => {
     return date.toLocaleString();
   };
 
-  // Calibration functions
-  const calibratePixelSize = useCallback((knownDistance) => {
-    // This would integrate with the measurement tools
-    const newPixelSize = knownDistance / 100; // Placeholder calculation
-    setCalibration(prev => ({
-      ...prev,
-      pixelSize: newPixelSize,
-      calibrated: true
-    }));
-    toast.success('Calibration completed');
-  }, []);
+
 
   useEffect(() => {
     // Auto-detect cameras when component mounts
@@ -514,213 +516,214 @@ const CameraCapture = () => {
             </div>
           </div>
 
-          {/* Camera Controls */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-secondary-900 mb-4">Camera Controls</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={isCameraOn ? stopCamera : startCamera}
-                className={`btn-primary flex items-center justify-center space-x-2 ${
-                  isCameraOn ? 'bg-error-500 hover:bg-error-600' : ''
-                }`}
-              >
-                {isCameraOn ? (
-                  <>
-                    <CameraOff className="h-5 w-5" />
-                    <span>Stop Camera</span>
-                  </>
-                ) : (
-                  <>
-                    <Camera className="h-5 w-5" />
-                    <span>Start Camera</span>
-                  </>
-                )}
-              </button>
+                     {/* Camera Controls */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-secondary-900 mb-4">Camera Controls</h3>
+             <div className="grid grid-cols-2 gap-3">
+               <button
+                 onClick={isCameraOn ? stopCamera : startCamera}
+                 className={`btn-primary flex items-center justify-center space-x-2 ${
+                   isCameraOn ? 'bg-error-500 hover:bg-error-600' : ''
+                 }`}
+               >
+                 {isCameraOn ? (
+                   <>
+                     <CameraOff className="h-5 w-5" />
+                     <span>Stop Camera</span>
+                   </>
+                 ) : (
+                   <>
+                     <Camera className="h-5 w-5" />
+                     <span>Start Camera</span>
+                   </>
+                 )}
+               </button>
 
-              <button
-                onClick={captureImage}
-                disabled={!isCameraOn}
-                className="btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="h-5 w-5" />
-                <span>Capture</span>
-              </button>
+               <button
+                 onClick={captureImage}
+                 disabled={!isCameraOn}
+                 className="btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 <Download className="h-5 w-5" />
+                 <span>Capture</span>
+               </button>
 
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={!isCameraOn}
-                className={`btn-outline flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isRecording ? 'border-error-500 text-error-500 hover:bg-error-500 hover:text-white' : ''
-                }`}
-              >
-                {isRecording ? (
-                  <>
-                    <Square className="h-5 w-5" />
-                    <span>Stop</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-5 w-5" />
-                    <span>Record</span>
-                  </>
-                )}
-              </button>
+               <button
+                 onClick={isRecording ? stopRecording : startRecording}
+                 disabled={!isCameraOn}
+                 className={`btn-outline flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                   isRecording ? 'border-error-500 text-error-500 hover:bg-error-500 hover:text-white' : ''
+                 }`}
+               >
+                 {isRecording ? (
+                   <>
+                     <Square className="h-5 w-5" />
+                     <span>Stop</span>
+                   </>
+                 ) : (
+                   <>
+                     <Play className="h-5 w-5" />
+                     <span>Record</span>
+                   </>
+                 )}
+               </button>
 
-              <button
-                onClick={saveImage}
-                disabled={!capturedImage}
-                className="btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="h-5 w-5" />
-                <span>Save</span>
-              </button>
-            </div>
-          </div>
+               <button
+                 onClick={saveImage}
+                 disabled={!capturedImage}
+                 className="btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 <Save className="h-5 w-5" />
+                 <span>Save</span>
+               </button>
+             </div>
+           </div>
 
-          {/* Capture Metadata */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-secondary-900 mb-4">Capture Metadata</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Analysis Type
-                </label>
-                <select
-                  value={selectedAnalysisType}
-                  onChange={(e) => setSelectedAnalysisType(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="general">General</option>
-                  <option value="metallurgical">Metallurgical Analysis</option>
-                  <option value="graphite">Graphite Analysis</option>
-                  <option value="structural">Structural Analysis</option>
-                  <option value="image_processing">Image Processing</option>
-                </select>
-              </div>
+           {/* Calibration Status */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-secondary-900 mb-4">Calibration Status</h3>
+             {calibration ? (
+               <div className="space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-secondary-700 mb-2">
+                       Pixel Size (μm)
+                     </label>
+                     <div className="input-field bg-secondary-50 text-secondary-900">
+                       {calibration.pixelSize || 'N/A'}
+                     </div>
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-secondary-700 mb-2">
+                       Magnification
+                     </label>
+                     <div className="input-field bg-secondary-50 text-secondary-900">
+                       {calibration.magnification ? `${calibration.magnification}x` : 'N/A'}
+                     </div>
+                   </div>
+                 </div>
+                 
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center space-x-2">
+                     <span className="text-sm text-secondary-600">Status:</span>
+                     <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                       Active
+                     </span>
+                   </div>
+                   <div className="text-xs text-secondary-500">
+                     {calibration.updatedAt ? new Date(calibration.updatedAt).toLocaleDateString() : 'N/A'}
+                   </div>
+                 </div>
+                 
+                 <div className="text-xs text-secondary-500">
+                   <p>• This calibration is active and will be applied to measurements</p>
+                   <p>• Pixel size: {calibration.pixelSize || 'N/A'} μm per pixel</p>
+                   <p>• Magnification: {calibration.magnification || 'N/A'}x</p>
+                 </div>
+               </div>
+             ) : (
+               <div className="space-y-4">
+                 <div className="text-center">
+                   <p className="text-sm text-secondary-600 mb-3">No active calibration found</p>
+                   <button 
+                     onClick={() => {
+                       const testCalibration = {
+                         pixelSize: 0.1,
+                         magnification: 100,
+                         updatedAt: new Date().toISOString()
+                       };
+                       setCalibration(testCalibration);
+                       console.log('Test calibration set:', testCalibration);
+                     }}
+                     className="btn-primary text-sm px-4 py-2"
+                   >
+                     Set Test Calibration
+                   </button>
+                 </div>
+                 <div className="text-xs text-secondary-500 text-center">
+                   <p>This is a temporary test button. Remove it once your backend calibration endpoint is ready.</p>
+                 </div>
+               </div>
+             )}
+           </div>
 
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={captureNotes}
-                  onChange={(e) => setCaptureNotes(e.target.value)}
-                  placeholder="Add notes about this capture..."
-                  className="input-field"
-                  rows={3}
-                />
-              </div>
+          
 
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Tags
-                </label>
-                <input
-                  type="text"
-                  value={captureTags}
-                  onChange={(e) => setCaptureTags(e.target.value)}
-                  placeholder="Enter tags separated by commas..."
-                  className="input-field"
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Calibration */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-secondary-900 mb-4">Calibration</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Pixel Size (μm)
-                </label>
-                <input
-                  type="number"
-                  value={calibration.pixelSize}
-                  onChange={(e) => setCalibration(prev => ({ ...prev, pixelSize: parseFloat(e.target.value) }))}
-                  step="0.01"
-                  className="input-field"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Magnification
-                </label>
-                <input
-                  type="number"
-                  value={calibration.magnification}
-                  onChange={(e) => setCalibration(prev => ({ ...prev, magnification: parseInt(e.target.value) }))}
-                  className="input-field"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <span className={`status-indicator ${calibration.calibrated ? 'status-success' : 'status-warning'}`}>
-                  {calibration.calibrated ? 'Calibrated' : 'Not Calibrated'}
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Camera View */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Live Camera */}
-          <div className="card">
-            <h3 className="text-lg font-semibold text-secondary-900 mb-4">Live Camera Feed</h3>
-            <div className="image-canvas">
-              {isCameraOn ? (
-                <Webcam
-                  ref={webcamRef}
-                  audio={false}
-                  videoConstraints={videoConstraints}
-                  className="w-full h-full object-contain rounded-lg"
-                  screenshotFormat="image/png"
-                  mirrored={flipSettings.flipHorizontal}
-                  style={{
-                    transform: flipSettings.flipVertical ? 'scaleY(-1)' : 'scaleY(1)'
-                  }}
-                />
-              ) : (
-                <div className="text-center text-secondary-500">
-                  <CameraOff className="h-24 w-24 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Camera is not active</p>
-                  <p className="text-sm">Click "Start Camera" to begin</p>
-                </div>
-              )}
-            </div>
-          </div>
+                     {/* Live Camera */}
+           <div className="card">
+             <h3 className="text-lg font-semibold text-secondary-900 mb-4">Live Camera Feed</h3>
+             <div className="image-canvas">
+               {isCameraOn ? (
+                 <Webcam
+                   ref={webcamRef}
+                   audio={false}
+                   videoConstraints={videoConstraints}
+                   className="w-full h-full object-contain rounded-lg"
+                   screenshotFormat="image/png"
+                   mirrored={flipSettings.flipHorizontal}
+                   style={{
+                     transform: flipSettings.flipVertical ? 'scaleY(-1)' : 'scaleY(1)'
+                   }}
+                 />
+               ) : (
+                 <div className="text-center text-secondary-500">
+                   <CameraOff className="h-24 w-24 mx-auto mb-4 opacity-50" />
+                   <p className="text-lg font-medium">Camera is not active</p>
+                   <p className="text-sm">Click "Start Camera" to begin</p>
+                 </div>
+               )}
+             </div>
+           </div>
 
-          {/* Captured Image */}
-          {capturedImage && (
-            <div className="card">
-              <h3 className="text-lg font-semibold text-secondary-900 mb-4">Captured Image</h3>
-              <div className="image-canvas">
-                <img
-                  src={capturedImage}
-                  alt="Captured microscopy image"
-                  className="w-full h-full object-contain rounded-lg"
-                  style={{
-                    transform: `${flipSettings.flipHorizontal ? 'scaleX(-1)' : ''} ${flipSettings.flipVertical ? 'scaleY(-1)' : ''}`.trim()
-                  }}
-                />
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-secondary-600">
-                  Resolution: {cameraSettings.resolution} | 
-                  Pixel Size: {calibration.pixelSize} μm | 
-                  Magnification: {calibration.magnification}x
-                </div>
-                <button
-                  onClick={() => setCapturedImage(null)}
-                  className="btn-secondary"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          )}
+           
+
+                     {/* Captured Image */}
+           {capturedImage && (
+             <div className="card">
+               <h3 className="text-lg font-semibold text-secondary-900 mb-4">Captured Image</h3>
+               <div className="image-canvas">
+                 <img
+                   src={capturedImage}
+                   alt="Captured microscopy image"
+                   className="w-full h-full object-contain rounded-lg"
+                   style={{
+                     transform: `${flipSettings.flipHorizontal ? 'scaleX(-1)' : ''} ${flipSettings.flipVertical ? 'scaleY(-1)' : ''}`.trim()
+                   }}
+                 />
+               </div>
+               <div className="mt-4 flex items-center justify-between">
+                 <div className="text-sm text-secondary-600">
+                   Resolution: {cameraSettings.resolution}
+                 </div>
+                 <div className="flex items-center space-x-3">
+                   <button
+                     onClick={() => setCapturedImage(null)}
+                     className="btn-secondary"
+                   >
+                     Clear
+                   </button>
+                   <button
+                     onClick={() => {
+                       // Navigate to Image Processing page with the captured image
+                       // You can use React Router or pass the image data through context/state
+                       console.log('Navigating to Image Processing with image:', capturedImage);
+                       // For now, we'll just log it. You can implement navigation logic here
+                       toast.success('Redirecting to Image Processing...');
+                     }}
+                     className="btn-primary flex items-center space-x-2"
+                   >
+                     <ImageIcon className="h-4 w-4" />
+                     <span>Go to Image Processing</span>
+                   </button>
+                 </div>
+               </div>
+             </div>
+           )}
         </div>
       </div>
 
@@ -769,42 +772,15 @@ const CameraCapture = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-secondary-500">
-                        {formatTimestamp(capture.timestamp)}
-                      </span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        capture.metadata.analysisType === 'general' ? 'bg-blue-100 text-blue-800' :
-                        capture.metadata.analysisType === 'metallurgical' ? 'bg-green-100 text-green-800' :
-                        capture.metadata.analysisType === 'graphite' ? 'bg-purple-100 text-purple-800' :
-                        capture.metadata.analysisType === 'structural' ? 'bg-orange-100 text-orange-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {capture.metadata.analysisType.replace('_', ' ')}
-                      </span>
-                    </div>
+                                         <div className="flex items-center justify-between">
+                       <span className="text-xs text-secondary-500">
+                         {formatTimestamp(capture.timestamp)}
+                       </span>
+                     </div>
                     
-                    <div className="text-sm text-secondary-700">
-                      <p><strong>Resolution:</strong> {capture.metadata.resolution}</p>
-                      <p><strong>Magnification:</strong> {capture.metadata.magnification}x</p>
-                      {capture.metadata.notes && (
-                        <p><strong>Notes:</strong> {capture.metadata.notes}</p>
-                      )}
-                    </div>
-                    
-                    {capture.metadata.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {capture.metadata.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-secondary-100 text-secondary-700 text-xs rounded-full"
-                          >
-                            <Tag className="h-3 w-3 inline mr-1" />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                                                              <div className="text-sm text-secondary-700">
+                       <p><strong>Resolution:</strong> {capture.metadata.resolution}</p>
+                     </div>
                   </div>
                 </div>
               ))}
