@@ -1,6 +1,7 @@
 import React from 'react';
 import { 
   Home, 
+  Ruler,
   Camera, 
   Image, 
   Microscope, 
@@ -18,6 +19,12 @@ const Sidebar = ({ isOpen, onClose, currentPath, onNavigate }) => {
       path: '/dashboard',
       icon: Home,
       description: 'Overview and recent analyses'
+    },
+    {
+      name: 'Calibration',
+      path: '/calibration',
+      icon: Ruler,
+      description: 'Microscope calibration settings'
     },
     {
       name: 'Camera Capture',

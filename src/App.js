@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
+import Calibration from './pages/Calibration';
 import CameraCapture from './pages/CameraCapture';
 import ImageProcessing from './pages/ImageProcessing';
 import MetallurgicalAnalysis from './pages/MetallurgicalAnalysis';
@@ -10,6 +11,7 @@ import GraphiteAnalysis from './pages/GraphiteAnalysis';
 import StructuralAnalysis from './pages/StructuralAnalysis';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
+import { CalibrationProvider } from './contexts/CalibrationContext';
 import './index.css';
 
 function App() {
@@ -64,19 +66,22 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="App">
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/camera" element={<CameraCapture />} />
-            <Route path="/image-processing" element={<ImageProcessing />} />
-            <Route path="/metallurgical-analysis" element={<MetallurgicalAnalysis />} />
-            <Route path="/graphite-analysis" element={<GraphiteAnalysis />} />
-            <Route path="/structural-analysis" element={<StructuralAnalysis />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/help" element={<Help />} />
-          </Routes>
-        </Layout>
+        <CalibrationProvider>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/calibration" element={<Calibration />} />
+              <Route path="/camera" element={<CameraCapture />} />
+              <Route path="/image-processing" element={<ImageProcessing />} />
+              <Route path="/metallurgical-analysis" element={<MetallurgicalAnalysis />} />
+              <Route path="/graphite-analysis" element={<GraphiteAnalysis />} />
+              <Route path="/structural-analysis" element={<StructuralAnalysis />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/help" element={<Help />} />
+            </Routes>
+          </Layout>
+        </CalibrationProvider>
         <Toaster
           position="top-right"
           toastOptions={{

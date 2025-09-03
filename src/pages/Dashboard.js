@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Camera, 
+  Ruler,
   Image, 
   Microscope, 
   Layers, 
@@ -12,6 +13,7 @@ import {
   Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import MeasurementDisplay from '../components/MeasurementDisplay';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -58,24 +60,31 @@ const Dashboard = () => {
       color: 'primary'
     },
     {
+      name: 'Calibration',
+      description: 'Manage microscope calibration settings',
+      icon: Ruler,
+      path: '/calibration',
+      color: 'info'
+    },
+    {
       name: 'Image Processing',
       description: 'Enhance and filter images',
       icon: Image,
-      path: '/processing',
+      path: '/image-processing',
       color: 'secondary'
     },
     {
       name: 'Metallurgical Analysis',
       description: 'Analyze porosity and phases',
       icon: Microscope,
-      path: '/metallurgical',
+      path: '/metallurgical-analysis',
       color: 'success'
     },
     {
       name: 'Graphite Analysis',
       description: 'Assess nodularity and flakes',
       icon: Layers,
-      path: '/graphite',
+      path: '/graphite-analysis',
       color: 'warning'
     }
   ];
@@ -210,10 +219,13 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
-      </div>
+             </div>
 
-      {/* Statistics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       {/* Calibration Status */}
+       <MeasurementDisplay />
+
+       {/* Statistics Overview */}
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card text-center">
           <div className="text-3xl font-bold text-primary-600 mb-2">156</div>
           <div className="text-secondary-600">Total Analyses</div>
